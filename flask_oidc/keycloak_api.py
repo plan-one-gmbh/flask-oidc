@@ -85,26 +85,26 @@ class KeycloakAPI(object):
         return {'grant_type': 'urn:ietf:params:oauth:grant-type:uma-ticket',
                 'audience': self.client_secrets['client_id']}
 
-    def get_resource_info(self, token, resource_id):
+    def get_resource_info(self, resource_id):
         """
         Inquires the provider for a specific resource information
-        :param token: the access token to authenticate the access
-        :type token: str
         :param resource_id: the id of the desired resource
         :type resource_id: str
         :return: a dictionary with the resource information
         """
-        if token is None:
-            logger.error("The access token is not available.")
-            return None
-        headers, payload = self._build_api_call_to_get_resource_info(token)
+        pat = self._get_protection_api_token()
+        headers, payload = self._build_api_call_to_get_resource_info(pat["access_token"])
         content, resp = self._execute_get_resource_info_call(headers, payload, resource_id)
         return self._process_api_response(content, resp)
 
     def _process_api_response(self, content, resp):
+        result = self.decode_result(content)
         if resp.status != 200:
-            logger.error("The call to keycloak endpoint was unsuccessful.")
+            logger.error("The call to keycloak endpoint was unsuccessful. Results: %s", result)
             raise Exception(resp)
+        return result
+
+    def decode_result(self, content):
         if not isinstance(content, str):
             content = content.decode('utf-8')
         return json.loads(content)
@@ -124,3 +124,10 @@ class KeycloakAPI(object):
     def jwt_decode(self, token):
         return jwt.decode(token, self.client_secrets["realm_pub_key"],
                           algorithms=self.client_secrets["token_algorithm"], audience=self.client_secrets['client_id'])
+
+    def _get_protection_api_token(self):
+        headers = {'Content-Type': 'application/x-www-form-urlencoded'}
+        payload = {'grant_type': 'client_credentials',
+                   'client_id': self.client_secrets['client_id'], 'client_secret': self.client_secrets['client_secret']}
+        content, resp = self._execute_api_call(headers, payload)
+        return self._process_api_response(content, resp)
