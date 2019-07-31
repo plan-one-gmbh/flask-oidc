@@ -16,7 +16,7 @@ Features
 - Friendly API
 - Perfect integration into Flask
 - Helper functions to allow resource servers to accept OAuth2 tokens
-- Keycloak Integration
+- Keycloak integration
 - Support for authorization via Keycloak
 
 Installation
@@ -131,11 +131,12 @@ functions with :meth:`~flask_oidc.OpenIDConnect.check_authorization`::
 You have the same parameters as for accept_token plus the parameter validation_func.
 With this, you can set a callback_method that is used to check if the request is permitted
 instead of the default implementation. The default implementation is asking the keycloak
-server for an rely party token that has all permissions of the current logged in user.
-These permissions are checked against the current uri in the request. Is there a match
-the request is granted with a 200 and the decorated function is called. If not the decorator
-returns a 403. Is there are any errors or problems while validating the decorator also returns
-403.
+server for a rely party token that has all permissions of the current logged in user. The
+rely party token or rpt contains the permissions of a user after keycloak evaluate all
+policies. These permissions are checked against the current uri in the request. Is
+there a match, the request is granted with a 200 and the decorated function is called.
+If not, the decorator returns a 403. Is there are any errors or problems while validating,
+the decorator also returns 403.
 
 Registration
 ------------
@@ -292,6 +293,8 @@ This is a list of all settings supported in the current release.
     Boolean to enable the keycloak support. You can enable this in applications where
     you use keycloak as a resource server and want to administrate all permissions via
     keycloak. (see decorator check_authorization and OIDC_RESOURCE_SERVER_ONLY)
+    If set to False the decorator check_authorization will always execute the decorated
+    function without any checking!
     Defaults to False.
 
   OIDC_KEYCLOAK_CLIENT_SECRETS
