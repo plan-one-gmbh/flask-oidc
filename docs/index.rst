@@ -16,7 +16,8 @@ Features
 - Friendly API
 - Perfect integration into Flask
 - Helper functions to allow resource servers to accept OAuth2 tokens
-
+- Keycloak integration
+- Support for authorization via Keycloak
 
 Installation
 ------------
@@ -119,6 +120,23 @@ issued by the OpenID Connect provider, just decorate those API functions with
 If you are only using this part of flask-oidc, it is suggested to set the
 configuration option `OIDC_RESOURCE_SERVER_ONLY` (new in 1.0.5).
 
+If you want to control permissions via Keycloak Authorization, just decorate those API
+functions with :meth:`~flask_oidc.OpenIDConnect.check_authorization`::
+
+    @app.route('/api')
+    @oidc.check_authorization()
+    def my_api():
+        return json.dumps('Welcome %s' % g.oidc_token_info['sub'])
+
+You have the same parameters as for accept_token plus the parameter validation_func.
+With this, you can set a callback_method that is used to check if the request is permitted
+instead of the default implementation. The default implementation is asking the keycloak
+server for a rely party token that has all permissions of the current logged in user. The
+rely party token or rpt contains the permissions of a user after keycloak evaluate all
+policies. These permissions are checked against the current uri in the request. Is
+there a match, the request is granted with a 200 and the decorated function is called.
+If not, the decorator returns a 403. Is there are any errors or problems while validating,
+the decorator also returns 403.
 
 Registration
 ------------
@@ -270,6 +288,54 @@ This is a list of all settings supported in the current release.
     String that sets the authentication method used when communicating with
     the token_introspection_uri.  Valid values are 'client_secret_post',
     'client_secret_basic', or 'bearer'.  Defaults to 'client_secret_post'.
+
+  OIDC_KEYCLOAK_ENABLED
+    Boolean to enable the keycloak support. You can enable this in applications where
+    you use keycloak as a resource server and want to administrate all permissions via
+    keycloak. (see decorator check_authorization and OIDC_RESOURCE_SERVER_ONLY)
+    If set to False the decorator check_authorization will always execute the decorated
+    function without any checking!
+    Defaults to False.
+
+  OIDC_KEYCLOAK_CLIENT_SECRETS
+    String that sets the configuration file for keycloak. In this file you configure
+    all secrets and special configurations. If you want to see a demo configuration file
+    you can find one in the test directory named "keycloak_authorization.json"
+    Defaults to False.
+
+Configuration
+-------------
+
+To configure the adapter you have to create 1 config file for
+the oidc part and 1 configuration file for keycloak. For the oidc
+part see "Manual client registration".
+For keycloak you have to create a json configuration file with
+the following keys:
+
+  realm
+    The Realm your Client is part of
+
+  auth-server-url
+    The api endpoint of keycloak for all auth requests,
+    for example: "http://test/auth"
+
+  client_id
+    Client ID issued by your IdP
+
+  client_secret
+    Client secret belonging to the registered ID
+
+  grant_type
+    The authentication type how your client will authenticate
+    to keycloak. For example: "client_credentials"
+
+  realm_pub_key
+    The public key of your realm:
+    "\\-\\-\\-\\-\\-BEGIN PUBLIC KEY\\-\\-\\-\\-\\- \\nPUBLIC-KEY\\n \\-\\-\\-\\-\\-END PUBLIC KEY\\-\\-\\-\\-\\-"
+
+  token_algorithm
+    The algorithm how the jwt's are signed:
+    For example: "RS256"
 
 
 API References
