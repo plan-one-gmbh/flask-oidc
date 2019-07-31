@@ -100,8 +100,7 @@ class KeycloakAPI(object):
     def _process_api_response(self, content, resp):
         result = self.decode_result(content)
         if resp.status != 200:
-            logger.error(result)
-            logger.error("The call to keycloak endpoint was unsuccessful.")
+            logger.error("The call to keycloak endpoint was unsuccessful. Results: %s", result)
             raise Exception(resp)
         return result
 
