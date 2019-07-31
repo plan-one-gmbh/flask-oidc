@@ -300,6 +300,40 @@ This is a list of all settings supported in the current release.
     you can find one in the test directory named "keycloak_authorization.json"
     Defaults to False.
 
+Configuration
+-------------
+
+To configure the adapter you have to create 1 config file for
+the oidc part and 1 configuration file for keycloak. For the oidc
+part see "Manual client registration".
+For keycloak you have to create a json configuration file with
+the following keys:
+
+  realm
+    The Realm your Client is part of
+
+  auth-server-url
+    The api endpoint of keycloak for all auth requests,
+    for example: "http://test/auth"
+
+  client_id
+    Client ID issued by your IdP
+
+  client_secret
+    Client secret belonging to the registered ID
+
+  grant_type
+    The authentication type how your client will authenticate
+    to keycloak. For example: "client_credentials"
+
+  realm_pub_key
+    The public key of your realm:
+    "\\-\\-\\-\\-\\-BEGIN PUBLIC KEY\\-\\-\\-\\-\\- \\nPUBLIC-KEY\\n \\-\\-\\-\\-\\-END PUBLIC KEY\\-\\-\\-\\-\\-"
+
+  token_algorithm
+    The algorithm how the jwt's are signed:
+    For example: "RS256"
+
 
 API References
 --------------
