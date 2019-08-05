@@ -131,8 +131,8 @@ functions with :meth:`~flask_oidc.OpenIDConnect.check_authorization`::
 You have the same parameters as for accept_token plus the parameter validation_func.
 With this, you can set a callback_method that is used to check if the request is permitted
 instead of the default implementation. The default implementation is asking the keycloak
-server for a rely party token that has all permissions of the current logged in user. The
-rely party token or rpt contains the permissions of a user after keycloak evaluate all
+server for a Requesting Party Token that has all permissions of the current logged in user. The
+Requesting Party Token or RPT contains the permissions of a user after keycloak evaluate all
 policies. These permissions are checked against the current uri in the request. Is
 there a match, the request is granted with a 200 and the decorated function is called.
 If not, the decorator returns a 403. Is there are any errors or problems while validating,
