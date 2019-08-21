@@ -805,7 +805,7 @@ class OpenIDConnect(object):
         self._set_cookie_id_token(None)
 
     # Below here is for resource servers to validate tokens
-    def validate_token(self, token, scopes_required=None):
+    def validate_token(self, token, scopes_required=None, roles_required=None):
         """
         This function can be used to validate tokens.
 
@@ -815,25 +815,31 @@ class OpenIDConnect(object):
         :param scopes_required: List of scopes that are required to be
             granted by the token before returning True.
         :type scopes_required: list
+        :param roles_required: List of roles that are required to be present
+            in the token before returning True
+        :type roles_required: list
 
         :returns: True if the token was valid and contained the required
-            scopes. An ErrStr (subclass of string for which bool() is False) if
-            an error occured.
+            scopes and roles. An ErrStr (subclass of string for which bool() is
+            False) if an error occured.
         :rtype: Boolean or String
 
         .. versionadded:: 1.1
         """
-        valid = self._validate_token(token, scopes_required)
+        valid = self._validate_token(token, scopes_required, roles_required)
         if valid is True:
             return True
         else:
             return ErrStr(valid)
 
-    def _validate_token(self, token, scopes_required=None):
+    def _validate_token(self, token, scopes_required=None, roles_required=None):
         """The actual implementation of validate_token."""
         if scopes_required is None:
             scopes_required = []
+        if roles_required is None:
+            roles_required = []
         scopes_required = set(scopes_required)
+        roles_required = set(roles_required)
 
         token_info = None
         valid_token = False
@@ -865,15 +871,20 @@ class OpenIDConnect(object):
 
             if valid_token:
                 token_scopes = token_info.get('scope', '').split(' ')
+                realm_roles = token_info.get('realm_access', {}).get('roles', [])
             else:
                 token_scopes = []
+                realm_roles = []
             has_required_scopes = scopes_required.issubset(
                 set(token_scopes))
+            has_required_roles = roles_required.issubset(set(realm_roles))
 
             if not has_required_scopes:
                 logger.debug('Token missed required scopes')
+            if not has_required_roles:
+                logger.debug('Token missed required roles')
 
-        if valid_token and has_required_scopes:
+        if valid_token and has_required_scopes and has_required_roles:
             g.oidc_token_info = token_info
             return True
 
@@ -936,7 +947,8 @@ class OpenIDConnect(object):
             return request.args['access_token']
         return None
 
-    def check_authorization(self, require_token=False, scopes_required=None, render_errors=True, validation_func=None):
+    def check_authorization(self, require_token=False, scopes_required=None, render_errors=True, validation_func=None,
+                            roles_required=None):
         """
         Use this to decorate view functions that should accept OAuth2 tokens,
         this will most likely apply to API functions.
@@ -966,6 +978,9 @@ class OpenIDConnect(object):
         :param validation_func: Function that is called instead of the default
             implementation to check if the request should granted or not.
         :type validation_func: function or None
+        :param roles_required: List of roles that are required to be present in
+            the token
+        :type roles_required: list
 
         .. versionadded:: 1.4
         """
@@ -979,7 +994,7 @@ class OpenIDConnect(object):
                 self._set_current_uri(request.script_root + request.path)
                 token = self._extract_access_token(request)
 
-                valid = self.validate_token(token, scopes_required)
+                valid = self.validate_token(token, scopes_required, roles_required=roles_required)
                 if (not require_token) or (valid and func(token)):
                     return view_func(*args, **kwargs)
                 else:
