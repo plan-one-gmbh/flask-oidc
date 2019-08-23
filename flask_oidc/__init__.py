@@ -125,6 +125,9 @@ class OpenIDConnect(object):
         # By default, we do not have a custom callback
         self._custom_callback = None
 
+        # Keycloak is not enabled by default
+        self.keycloak_enabled = False
+
         # get stuff from the app's config, which may override stuff set above
         if app is not None:
             self.init_app(app)
