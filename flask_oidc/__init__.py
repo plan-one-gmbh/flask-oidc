@@ -878,14 +878,16 @@ class OpenIDConnect(object):
             else:
                 token_scopes = []
                 realm_roles = []
-            has_required_scopes = scopes_required.issubset(
-                set(token_scopes))
+                logger.debug(f"Token is not marked as active. Token info: {token_info}")
+            has_required_scopes = scopes_required.issubset(set(token_scopes))
             has_required_roles = roles_required.issubset(set(realm_roles))
 
             if not has_required_scopes:
-                logger.debug('Token missed required scopes')
+                logger.debug(f'Token missed required scopes. Scopes present: {token_scopes}, '
+                             f'scopes required: {scopes_required}')
             if not has_required_roles:
-                logger.debug('Token missed required roles')
+                logger.debug(f'Token missed required roles. Roles present: {realm_roles}, '
+                             f'roles required: {roles_required}')
 
         if valid_token and has_required_scopes and has_required_roles:
             g.oidc_token_info = token_info
