@@ -131,6 +131,8 @@ def _configure_mock_object(test_app):
     test_app.oidc.keycloakApi.authorize.return_value = valid_rpt
     test_app.oidc.keycloakApi.get_access_token = Mock()
     test_app.oidc.keycloakApi.get_access_token.return_value = access_token
+    test_app.oidc.keycloakApi._get_realm_pub_key = Mock()
+    test_app.oidc.keycloakApi._get_realm_pub_key.return_value = "abc"
 
 
 def configure_mock_object_version1(test_app):
@@ -147,6 +149,7 @@ def configure_mock_version2(test_app):
     test_app.oidc.keycloakApi.jwt_decode.return_value = decoded_jwt_with_permission_test3
     test_app.oidc.keycloakApi.get_resource_info = Mock()
     test_app.oidc.keycloakApi.get_resource_info.side_effect = [resource_test3]
+
 
 def configure_mock_version3(test_app):
     _configure_mock_object(test_app)

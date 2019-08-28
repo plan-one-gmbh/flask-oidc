@@ -74,6 +74,16 @@ class MockHttp(object):
                 token_info['sub'] = 'valid_sub'
                 token_info['aud'] = 'TheirClient'
             return MockHttpResponse(), json.dumps(token_info)
+        elif path == "http://test/auth/realms/realm":
+            token_info = {
+                "realm": "realm",
+                "public_key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAhc3J4GYSIsxBVUjjA0iI+ssP0fv4j2h9wyBXxMWsLk94xZ0+OxKZiPD8kuLhnO29WFdaCleUGjY7+rnl6XhHIVoMSWYkUELE3JWTiAFWkQQyNIxcYvaS/qz41astgmRAdZ5+qlU+QEPirX4R5FpMUp2ZEn1sy18ngAGlYZneiCXNa6C6ktLQ/PY0qxs8BRY51aH9dFfhfFko6/n8IRKOtqu+MuTJ3bNu7fhHGOmL8NjhcA54cHDNirltroWdwdfPWIuPTBjPsJ7y+ysde6AbjfMC9DJ8HOeVfAeL+J0Xn4TsYN9FdG8ZJgKmkjCzzNTKZwZ/YACdqs1bcS8fa0caXQIDAQAB",
+                "token-service": "http://localhost/auth/realms/realm/protocol/openid-connect",
+                "account-service": "http://localhost/auth/realms/realm/account",
+                "tokens-not-before": 0
+            }
+
+            return MockHttpResponse(), json.dumps(token_info)
         else:
             raise Exception('Non-recognized path %s requested' % path)
 
@@ -226,6 +236,7 @@ def test_api_token_with_external_rendering():
     _check_api_token_handling('/external_api')
 
 
+@patch('httplib2.Http', MockHttp)
 def test_validate_token_return_false():
     test_app = make_test_app()
 
@@ -236,6 +247,7 @@ def test_validate_token_return_false():
         "Expected correct no token error message"
 
 
+@patch('httplib2.Http', MockHttp)
 def test_authorization_allowed_with_valid_permissions():
     test_app = make_test_app()
     configure_mock_object_version1(test_app)
@@ -268,6 +280,7 @@ def test_authorization_allowed_with_valid_permissions():
                                  "(response status was {response.status})".format(response=r)
 
 
+@patch('httplib2.Http', MockHttp)
 def test_authorization_denied_because_of_invalid_permissions():
     test_app = make_test_app()
     configure_mock_object_version1(test_app)
@@ -281,6 +294,7 @@ def test_authorization_denied_because_of_invalid_permissions():
                                  "(response status was {response.status})".format(response=r)
 
 
+@patch('httplib2.Http', MockHttp)
 def test_authorization_allowed_because_of_disabling_verification_of_permissions():
     test_app = make_test_app()
     _configure_mock_object(test_app)
@@ -293,6 +307,7 @@ def test_authorization_allowed_because_of_disabling_verification_of_permissions(
                                  "(response status was {response.status})".format(response=r)
 
 
+@patch('httplib2.Http', MockHttp)
 def test_authorization_denied_because_of_invalid_jwt_token():
     test_app = make_test_app()
     configure_mock_version3(test_app)
@@ -306,6 +321,7 @@ def test_authorization_denied_because_of_invalid_jwt_token():
                                  "(response status was {response.status})".format(response=r)
 
 
+@patch('httplib2.Http', MockHttp)
 def test_valid_call_of_custom_callback_method():
     test_app = make_test_app()
     configure_mock_version2(test_app)
@@ -318,6 +334,7 @@ def test_valid_call_of_custom_callback_method():
                                  "(response status was {response.status})".format(response=r)
 
 
+@patch('httplib2.Http', MockHttp)
 def test_verify_uri():
     test_app = make_test_app()
     test_app.oidc._set_current_uri("/version/of/assa/.bla")
