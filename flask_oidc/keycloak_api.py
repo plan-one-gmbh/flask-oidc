@@ -28,6 +28,7 @@ class KeycloakAPI(object):
 
     def init_app(self, client_secrets):
         self.client_secrets = client_secrets
+        self.client_secrets['realm_pub_key'] = self._get_realm_pub_key()
 
     def impersonate(self, token, subject, target_client):
         """
@@ -131,3 +132,11 @@ class KeycloakAPI(object):
                    'client_id': self.client_secrets['client_id'], 'client_secret': self.client_secrets['client_secret']}
         content, resp = self._execute_api_call(headers, payload)
         return self._process_api_response(content, resp)
+
+    def _get_realm_pub_key(self):
+        params_path = {"base_url": self.client_secrets["auth-server-url"], "realm-name": self.client_secrets["realm"]}
+        url = URL_ISSUER.format(**params_path)
+        resp, content = httplib2.Http().request(url)
+        result = self._process_api_response(content, resp)
+        key = result['public_key']
+        return f'-----BEGIN PUBLIC KEY-----\n{key}\n-----END PUBLIC KEY-----'
