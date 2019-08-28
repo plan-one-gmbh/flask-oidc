@@ -27,7 +27,7 @@ setup(
     url='https://github.com/puiterwijk/flask-oidc',
     author='Erica Ehrhardt, Patrick Uiterwijk',
     author_email='patrick@puiterwijk.org',
-    version='1.4.0',
+    version='1.4.1',
     packages=[
         'flask_oidc',
     ],
