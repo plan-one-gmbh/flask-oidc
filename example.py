@@ -62,7 +62,7 @@ def hello_me():
 
 
 @app.route('/api')
-@oidc.accept_token(True, ['openid'])
+@oidc.accept_token(True, ['openid'], auth_header_key='Authorization')
 def hello_api():
     return json.dumps({'hello': 'Welcome %s' % g.oidc_token_info['sub']})
 
