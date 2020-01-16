@@ -85,13 +85,13 @@ def create_app(config, oidc_overrides=None):
     app.route('/at')(app.oidc.check(get_at))
     app.route('/rt')(app.oidc.check(get_rt))
     # Check standalone usage
-    rendered = app.oidc.accept_token(True, ['openid'])(api)
+    rendered = app.oidc.accept_token(True, ['openid'], auth_header_key='Authorization')(api)
     app.route('/api', methods=['GET', 'POST'])(rendered)
 
     configure_keycloak_test_uris(app)
 
     # Check combination with an external API renderer like Flask-RESTful
-    unrendered = app.oidc.accept_token(True, ['openid'], render_errors=False)(raw_api)
+    unrendered = app.oidc.accept_token(True, ['openid'], render_errors=False, auth_header_key='Authorization')(raw_api)
 
     def externally_rendered_api(*args, **kwds):
         inner_response = unrendered(*args, **kwds)

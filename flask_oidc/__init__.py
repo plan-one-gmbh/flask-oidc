@@ -900,7 +900,7 @@ class OpenIDConnect(object):
         else:
             return 'Something went wrong checking your token'
 
-    def accept_token(self, require_token=False, scopes_required=None, render_errors=True):
+    def accept_token(self, require_token=False, scopes_required=None, render_errors=True, auth_header_key=None):
         """
         Use this to decorate view functions that should accept OAuth2 tokens,
         this will most likely apply to API functions.
@@ -911,6 +911,7 @@ class OpenIDConnect(object):
         Note that this only works if a token introspection url is configured,
         as that URL will be queried for the validity and scopes of a token.
 
+        :param auth_header_key: Key in headers which contains the Auth Token
         :param require_token: Whether a token is required for the current
             function. If this is True, we will abort the request if there
             was no token provided.
@@ -931,7 +932,7 @@ class OpenIDConnect(object):
             @wraps(view_func)
             def decorated(*args, **kwargs):
                 self._set_current_uri(request.script_root + request.path)
-                token = self._extract_access_token(request)
+                token = self._extract_access_token(request, auth_header_key)
 
                 validity = self.validate_token(token, scopes_required)
                 if (validity is True) or (not require_token):
@@ -943,17 +944,22 @@ class OpenIDConnect(object):
 
         return wrapper
 
-    def _extract_access_token(self, request):
-        if request.headers.get('Authorization', '').startswith('Bearer '):
-            return request.headers['Authorization'].split(None, 1)[1].strip()
+    def _extract_access_token(self, request, auth_header_key=None):
+        auth_header_key = auth_header_key or 'Authorization'
+        if request.headers.get(auth_header_key, '').startswith('Bearer '):
+            return request.headers[auth_header_key].split(None, 1)[1].strip()
         if 'access_token' in request.form:
             return request.form['access_token']
         if 'access_token' in request.args:
             return request.args['access_token']
         return None
 
-    def check_authorization(self, require_token=False, scopes_required=None, render_errors=True, validation_func=None,
-                            roles_required=None):
+    def check_authorization(self, require_token=False,
+                            scopes_required=None,
+                            render_errors=True,
+                            validation_func=None,
+                            roles_required=None,
+                            auth_header_key=None):
         """
         Use this to decorate view functions that should accept OAuth2 tokens,
         this will most likely apply to API functions.
@@ -968,6 +974,7 @@ class OpenIDConnect(object):
         as that URL will be queried for the validity and scopes of a token.
         It is tested with keycloak, not with other IdP's!
 
+        :param auth_header_key: Key in headers which contains the Auth Token
         :param require_token: Whether a token is required for the current
             function. If this is True, we will abort the request if there
             was no token provided.
@@ -997,7 +1004,7 @@ class OpenIDConnect(object):
                     return view_func(*args, **kwargs)
                 func = validation_func or self._is_authorized
                 self._set_current_uri(request.script_root + request.path)
-                token = self._extract_access_token(request)
+                token = self._extract_access_token(request, auth_header_key)
 
                 valid = self.validate_token(token, scopes_required, roles_required=roles_required)
                 if (not require_token) or (valid and func(token)):
