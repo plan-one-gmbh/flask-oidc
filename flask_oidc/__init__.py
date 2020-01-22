@@ -945,8 +945,10 @@ class OpenIDConnect(object):
         return wrapper
 
     def _extract_access_token(self, request, auth_header_key=None):
-        auth_header_key = auth_header_key or 'Authorization'
-        if request.headers.get(auth_header_key, '').startswith('Bearer '):
+        if auth_header_key is None:
+            auth_header_key = 'Authorization'
+        # Prefer the auth_header_key header, but fall back to Authorization when that header is not present
+        if request.headers.get(auth_header_key, request.headers.get('Authorization', '')).startswith('Bearer '):
             return request.headers[auth_header_key].split(None, 1)[1].strip()
         if 'access_token' in request.form:
             return request.form['access_token']
