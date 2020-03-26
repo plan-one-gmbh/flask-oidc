@@ -1031,6 +1031,9 @@ class OpenIDConnect(object):
         """
         response_body = {'error': 'invalid_token',
                          'error_description': error_description}
+
+        logger.warning("Authentication failed due to invalid token! Error description: %s", error_description)
+
         if render_errors:
             response_body = json.dumps(response_body)
         return response_body, error_code, {'WWW-Authenticate': 'Bearer'}
