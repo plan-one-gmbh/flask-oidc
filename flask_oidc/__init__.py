@@ -199,9 +199,6 @@ class OpenIDConnect(object):
             self.keycloakApi = KeycloakAPI()
             self.keycloakApi.init_app(keycloak_secrets)
             self.keycloak_enabled = True
-            self._keycloak_realm_roles = None
-            self._keycloak_client_roles = None
-            self._rpt_token = None
             self.current_uri = None
 
         try:
@@ -945,10 +942,8 @@ class OpenIDConnect(object):
         return wrapper
 
     def _extract_access_token(self, request, auth_header_key=None):
-        if auth_header_key is None:
-            auth_header_key = 'Authorization'
-        # Prefer the auth_header_key header, but fall back to Authorization when that header is not present
-        if request.headers.get(auth_header_key, request.headers.get('Authorization', '')).startswith('Bearer '):
+        auth_header_key = auth_header_key or 'Authorization'
+        if request.headers.get(auth_header_key, '').startswith('Bearer '):
             return request.headers[auth_header_key].split(None, 1)[1].strip()
         if 'access_token' in request.form:
             return request.form['access_token']
@@ -1007,7 +1002,7 @@ class OpenIDConnect(object):
                 func = validation_func or self._is_authorized
                 self._set_current_uri(request.script_root + request.path)
                 token = self._extract_access_token(request, auth_header_key)
-
+                g.encrypted_token = token
                 valid = self.validate_token(token, scopes_required, roles_required=roles_required)
                 if (not require_token) or (valid and func(token)):
                     return view_func(*args, **kwargs)
@@ -1058,20 +1053,18 @@ class OpenIDConnect(object):
         if validation_func is None:
             validation_func = self._is_uri_allowed
         try:
-            self._rpt_token = self.keycloakApi.authorize(token)
-            if self._rpt_token is None:
+            g.decrypted_token = self.keycloakApi.authorize(g.encrypted_token) if "encrypted_token" in g else None
+            if g.decrypted_token is None:
                 logger.debug("No rpt token received - authorization failed!")
                 return False
-            resources = self._get_permissions_from_token(self._rpt_token["access_token"])
+            resources = self._get_permissions_from_token(g.decrypted_token["access_token"])
             if resources is None:
                 logger.debug("Empty resource set - authorization failed!")
                 return False
-            self._keycloak_realm_roles = self._get_realm_roles_from_token(self._rpt_token["access_token"])
-            self._keycloak_client_roles = self._get_keycloak_client_roles_from_token(self._rpt_token["access_token"])
             for resource_id in resources:
                 resource = self.keycloakApi.get_resource_info(resource_id["rsid"])
                 if resource is not None and "uris" in resource and \
-                        validation_func(self._rpt_token["access_token"], resource):
+                        validation_func(g.decrypted_token["access_token"], resource):
                     return True
         except Exception as e:
             logger.debug(str(e))
@@ -1085,40 +1078,34 @@ class OpenIDConnect(object):
             self.current_uri = uri
 
     @property
-    def rpt_token(self):
-        return self._rpt_token
+    def encrypted_token(self):
+        return g.decrypted_token if 'decrypted_token' in g else None
 
     @property
     def keycloak_realm_roles(self):
-        return self._keycloak_realm_roles
+        return self._get_realm_roles_from_token()
 
     @property
     def keycloak_client_roles(self):
-        return self._keycloak_client_roles
+        return self._get_keycloak_client_roles_from_token()
 
-    def _get_realm_roles_from_token(self, token):
+    def _get_realm_roles_from_token(self):
         """
         :param token: access token that contains realm roles
         :return: Returns a dict with all realm roles from the token
 
         .. versionadded:: 1.4
         """
-        if token is None:
-            return None
-        token = self.keycloakApi.jwt_decode(token)
-        return token.get('realm_access', {}).get('roles', None)
+        return self.get_token_data().get('realm_access', {}).get('roles', None)
 
-    def _get_keycloak_client_roles_from_token(self, token):
+    def _get_keycloak_client_roles_from_token(self):
         """
         :param token: access token that contains client roles
         :return: Returns a dict with all client roles from the token
 
         .. versionadded:: 1.4
         """
-        if token is None:
-            return None
-        token = self.keycloakApi.jwt_decode(token)
-        return token.get('resource_access', {})
+        return self.get_token_data().get('resource_access', {})
 
     def _get_permissions_from_token(self, rpt_token):
         """
@@ -1133,6 +1120,9 @@ class OpenIDConnect(object):
         if rpt is None:
             return None
         return rpt.get('authorization', {}).get('permissions', None)
+
+    def get_encrypted_token_info(self):
+        return g.token_info
 
     def _is_uri_allowed(self, rpt_token, resource):
         """
@@ -1216,3 +1206,6 @@ class OpenIDConnect(object):
             urlencode(request), headers=headers)
         # TODO: Cache this reply
         return _json_loads(content)
+
+    def get_token_data(self):
+        return g.oidc_token_info if 'oidc_token_info' in g else {}
