@@ -1002,7 +1002,6 @@ class OpenIDConnect(object):
                 func = validation_func or self._is_authorized
                 self._set_current_uri(request.script_root + request.path)
                 token = self._extract_access_token(request, auth_header_key)
-                g.encrypted_token = token
                 valid = self.validate_token(token, scopes_required, roles_required=roles_required)
                 if (not require_token) or (valid and func(token)):
                     return view_func(*args, **kwargs)
@@ -1053,18 +1052,18 @@ class OpenIDConnect(object):
         if validation_func is None:
             validation_func = self._is_uri_allowed
         try:
-            g.decrypted_token = self.keycloakApi.authorize(g.encrypted_token) if "encrypted_token" in g else None
-            if g.decrypted_token is None:
-                logger.debug("No rpt token received - authorization failed!")
+            key_cloak_response = self.keycloakApi.authorize(token)
+            if not key_cloak_response and not key_cloak_response['access_token']:
                 return False
-            resources = self._get_permissions_from_token(g.decrypted_token["access_token"])
+            self.set_key_cloak_token_data(self.keycloakApi.jwt_decode(key_cloak_response['access_token']))
+            resources = self.get_key_cloak_token_data().get('authorization', {}).get('permissions', None)
             if resources is None:
                 logger.debug("Empty resource set - authorization failed!")
                 return False
             for resource_id in resources:
                 resource = self.keycloakApi.get_resource_info(resource_id["rsid"])
                 if resource is not None and "uris" in resource and \
-                        validation_func(g.decrypted_token["access_token"], resource):
+                        validation_func(self.get_key_cloak_token_data(), resource):
                     return True
         except Exception as e:
             logger.debug(str(e))
@@ -1078,16 +1077,20 @@ class OpenIDConnect(object):
             self.current_uri = uri
 
     @property
-    def encrypted_token(self):
-        return g.decrypted_token if 'decrypted_token' in g else None
+    def realm_roles_from_token(self):
+        return self.get_key_cloak_token_data().get('realm_access', {}).get('roles', None)
 
     @property
-    def keycloak_realm_roles(self):
-        return self._get_realm_roles_from_token()
+    def keycloak_client_roles_from_token(self):
+        return self.get_key_cloak_token_data().get('resource_access', {})
 
     @property
-    def keycloak_client_roles(self):
-        return self._get_keycloak_client_roles_from_token()
+    def permissions_from_key_cloak_token(self):
+        return self.get_key_cloak_token_data().get('authorization', {}).get('permissions', None)
+
+    @property
+    def company_permissions_from_key_cloak_token(self):
+        return self.get_key_cloak_token_data().get('permissions', {}).get('companyPermissions', {}).get('companyUuid', None)
 
     def _get_realm_roles_from_token(self):
         """
@@ -1098,37 +1101,12 @@ class OpenIDConnect(object):
         """
         return self.get_token_data().get('realm_access', {}).get('roles', None)
 
-    def _get_keycloak_client_roles_from_token(self):
-        """
-        :param token: access token that contains client roles
-        :return: Returns a dict with all client roles from the token
-
-        .. versionadded:: 1.4
-        """
-        return self.get_token_data().get('resource_access', {})
-
-    def _get_permissions_from_token(self, rpt_token):
-        """
-        :param rpt_token: requesting party token that contains the permissions
-        :return: Returns a dict with all permissions from the token
-
-        .. versionadded:: 1.4
-        """
-        if not self.keycloak_enabled or rpt_token is None:
-            return None
-        rpt = self.keycloakApi.jwt_decode(rpt_token)
-        if rpt is None:
-            return None
-        return rpt.get('authorization', {}).get('permissions', None)
-
     def get_encrypted_token_info(self):
         return g.token_info
 
-    def _is_uri_allowed(self, rpt_token, resource):
+    def _is_uri_allowed(self, token_data, resource):
         """
         Verifies that the access to a resource at a specific endpoint is granted or not
-        :param rpt_token: requesting party token
-        :type rpt_token: str
         :param resource: the resource at a specific endpoint
         :type resource: dict
         :return: true if it is an allowed URI, otherwise false
@@ -1140,7 +1118,7 @@ class OpenIDConnect(object):
         logger.debug("Check URIs against the RPT token.")
         is_uri_allowed = False
 
-        permissions = self._get_permissions_from_token(rpt_token)
+        permissions = token_data.get('authorization', {}).get('permissions', None)
         if permissions is None:
             logger.error("The minimum for the RPT is not satisfied.")
             return False
@@ -1209,3 +1187,9 @@ class OpenIDConnect(object):
 
     def get_token_data(self):
         return g.oidc_token_info if 'oidc_token_info' in g else {}
+
+    def get_key_cloak_token_data(self):
+        return g.key_cloak_token_data if 'key_cloak_token_data' in g else {}
+
+    def set_key_cloak_token_data(self, key_cloak_token_data):
+        g.key_cloak_token_data = key_cloak_token_data
